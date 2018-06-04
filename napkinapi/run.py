@@ -1,6 +1,6 @@
 from flask import Flask
-from flask_restful import Resource, Api, abort
-from functools import wraps
+from flask_restful import Api
+from transpec.whoami import Whoami
 
 app = Flask(__name__)
 api = Api(app)
@@ -38,21 +38,7 @@ app.config['SECRET_KEY'] = 'super-secret'
 
 jwt = JWT(app, authenticate, identity)
 
-
-def checkuser(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if current_identity.username == 'user1':
-            return func(*args, **kwargs)
-        return abort(401)
-    return wrapper
-
-class HelloWorld(Resource):
-    decorators = [checkuser, jwt_required()]
-    def get(self):
-        return {'hello': current_identity.username}
-
-api.add_resource(HelloWorld, '/')
+api.add_resource(Whoami, '/')
 
 if __name__ == '__main__':
     app.run(debug=True)
