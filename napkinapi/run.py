@@ -5,7 +5,7 @@ from transpec.whoami import Whoami
 app = Flask(__name__)
 api = Api(app)
 
-from flask_jwt import JWT, jwt_required, current_identity
+from flask_jwt import JWT, jwt_required
 from werkzeug.security import safe_str_cmp
 
 class User(object):
