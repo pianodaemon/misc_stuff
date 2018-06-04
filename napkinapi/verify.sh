@@ -1,0 +1,1 @@
+curl -H "Authorization: JWT eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZGVudGl0eSI6MSwibmJmIjoxNTI4MTM3MjY4LCJpYXQiOjE1MjgxMzcyNjgsImV4cCI6MTUyODEzNzU2OH0._hiE8hTyAK-7pI6TdprOocZvj6C5cYNUyhWK8_HWEO0" http://localhost:5000/
