@@ -1,3 +1,6 @@
+#!/usr/bin/python3
+
+
 from flask import Flask
 from flask_restful import Api
 from transpec.resources.whoami import Whoami

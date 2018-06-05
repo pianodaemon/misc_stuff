@@ -1,4 +1,4 @@
-from security.authprovider import AuthProvider
+from security.auth.provider import AuthProvider
 from persistence.models.users import User
 from werkzeug.security import safe_str_cmp
 
