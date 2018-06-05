@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_restful import Api
-from transpec.whoami import Whoami
+from transpec.resources.whoami import Whoami
 
 app = Flask(__name__)
 api = Api(app)
