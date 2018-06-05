@@ -5,11 +5,11 @@ from transpec.whoami import Whoami
 app = Flask(__name__)
 api = Api(app)
 
-from security.fake import FakeAuthProvider
+from security.providers.mock import MockAuthProvider
 
 app.config['SECRET_KEY'] = 'super-secret'
 
-auth_provider = FakeAuthProvider(app)
+auth_provider = MockAuthProvider(app)
 
 auth_provider()
 
