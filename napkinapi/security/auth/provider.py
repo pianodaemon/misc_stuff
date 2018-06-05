@@ -1,5 +1,4 @@
 from abc import ABCMeta, abstractmethod
-from flask_jwt import JWT
 
 
 class AuthProvider(metaclass=ABCMeta):
@@ -12,7 +11,7 @@ class AuthProvider(metaclass=ABCMeta):
 
 
     def __call__(self):
-         self._jwt = JWT(self._app, self.auth_handler, self.ident_handler)       
+        pass
 
 
     @abstractmethod

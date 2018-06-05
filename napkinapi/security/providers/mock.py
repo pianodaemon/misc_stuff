@@ -1,3 +1,4 @@
+from flask_jwt import JWT
 from security.auth.provider import AuthProvider
 from persistence.models.users import User
 from werkzeug.security import safe_str_cmp
@@ -23,6 +24,7 @@ class MockAuthProvider(AuthProvider):
 
     def __call__(self):
         super().__call__()
+        self._jwt = JWT(self._app, self.auth_handler, self.ident_handler)
 
 
     def auth_handler(self, username, password):
