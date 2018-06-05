@@ -1,3 +1,4 @@
+import logging
 from persistence.ds.adapter import Adapter, AdapterException
 
 
@@ -8,8 +9,8 @@ class MockAdapter(Adapter):
 
     _client = None
 
-    def __init__(self, logger, uri):
-        super().__init__(logger)
+    def __init__(self, uri):
+        super().__init__(logging.getLogger(__name__))
         self._uri = uri
 
 

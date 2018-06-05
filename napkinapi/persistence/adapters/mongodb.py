@@ -1,3 +1,4 @@
+import logging
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 from persistence.ds.adapter import Adapter, AdapterException
@@ -10,8 +11,8 @@ class MongoAdapter(Adapter):
 
     _client = None
 
-    def __init__(self, logger, uri):
-        super().__init__(logger)
+    def __init__(self, uri):
+        super().__init__(logging.getLogger(__name__))
         self._uri = uri
 
 
