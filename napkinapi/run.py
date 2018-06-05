@@ -1,8 +1,12 @@
 #!/usr/bin/python3
 
 
+import logging
+
 from flask import Flask
 from flask_restful import Api
+from persistence.ds.manager import DsManager
+from security.auth.manager import AuthManager
 from transpec.resources.whoami import Whoami
 
 app = Flask(__name__)
@@ -12,8 +16,14 @@ from security.providers.mock import MockAuthProvider
 
 app.config['SECRET_KEY'] = 'super-secret'
 
-auth_provider = MockAuthProvider(app)
+uri = "mockdb://XPSrw:j4nusx@mgdb.maxima.uki:27048/admin?authMechanism=SCRAM-SHA-1&replicaSet=XPSdevrep"
 
+logger = logging.getLogger(__name__)
+data_source = DsManager.get(logger, uri)
+
+am = AuthManager(app)
+am.subscribe('mock', MockAuthProvider)
+auth_provider = am.incept('mock', data_source)
 auth_provider()
 
 api.add_resource(Whoami, '/')

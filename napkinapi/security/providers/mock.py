@@ -17,8 +17,8 @@ class MockAuthProvider(AuthProvider):
     __USERID_TABLE = {u.id: u for u in __USERS}
 
 
-    def __init__(self, app, *args, **kwargs):
-        super().__init__(app)
+    def __init__(self, *args, **kwargs):
+        super().__init__(kwargs['app'])
 
 
     def __call__(self):
