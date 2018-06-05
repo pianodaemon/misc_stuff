@@ -21,9 +21,9 @@ uri = "mockdb://XPSrw:j4nusx@mgdb.maxima.uki:27048/admin?authMechanism=SCRAM-SHA
 logger = logging.getLogger(__name__)
 data_source = DsManager.get(logger, uri)
 
-am = AuthManager(app)
+am = AuthManager()
 am.subscribe('mock', MockAuthProvider)
-auth_provider = am.incept('mock', data_source)
+auth_provider = am.incept('mock', app=app, ds_adapter=data_source)
 auth_provider()
 
 api.add_resource(Whoami, '/')
