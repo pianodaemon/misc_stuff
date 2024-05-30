@@ -2,65 +2,66 @@
 
 from bcc import BPF
 import json
-import os
 
-
-program = r"""
-BPF_PERF_OUTPUT(output);
-
+# BPF program
+bpf_program = """
+#include <uapi/linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/limits.h>
 
-struct data_t {
-   int pid;
-   int ppid;
-   int uid;
-   char command[16];
-   char message[12];
+BPF_PERF_OUTPUT(bpf_buffer_00);
+
+struct execve_data_t {
+    u64 uid;
+    u32 pid;
+    u32 ppid;
+    char comm[TASK_COMM_LEN];
+    char filename[NAME_MAX];
 };
 
-int grab_execution(void *ctx) {
-   struct data_t data = {};
-   char message[12] = "No timestamp";
+TRACEPOINT_PROBE(syscalls, sys_enter_execve) {
 
-   struct task_struct *task = (struct task_struct *)bpf_get_current_task();
-   data.ppid = task->real_parent->tgid;
+    struct execve_data_t data = {};
 
-   data.pid = bpf_get_current_pid_tgid() >> 32;
-   data.uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
+    struct task_struct *task = (struct task_struct *)bpf_get_current_task();
+    data.ppid = task->real_parent->tgid;
 
-   bpf_get_current_comm(&data.command, sizeof(data.command));
-   bpf_probe_read_kernel(&data.message, sizeof(data.message), message);
+    u32 pid = (u32)(bpf_get_current_pid_tgid() >> 32);
+    data.pid = pid;
+    data.uid = bpf_get_current_uid_gid() & 0xFFFFFFFF;
+    bpf_get_current_comm(&data.comm, sizeof(data.comm));
+    bpf_probe_read_user_str(&data.filename, sizeof(data.filename), args->filename);
+    bpf_buffer_00.perf_submit(args, &data, sizeof(data));
 
-   output.perf_submit(ctx, &data, sizeof(data));
-
-   return 0;
+    return 0;
 }
 """
 
-b = BPF(text=program)
-syscall = b.get_syscall_fnname("execve")
-b.attach_kprobe(event=syscall, fn_name="grab_execution")
+# Load BPF program
+bpf = BPF(text=bpf_program)
+bpf.detach_tracepoint("syscalls:sys_enter_execve")
 
-fetch_pathname = lambda pid: os.readlink(f"/proc/{pid}/exe")
-
-def fetch_cmdline(pid):
-   cmd_line = None
-   with open(f"/proc/{pid}/cmdline") as fr:
-       return fr.readline()
+# Attach the BPF program to the sys_enter_execve tracepoint
+bpf.attach_tracepoint(tp="syscalls:sys_enter_execve", fn_name="tracepoint__syscalls__sys_enter_execve")
 
 def print_event(cpu, data, size):
-   data = b["output"].event(data)
-   dj = json.dumps({
-       "ppid": data.ppid,
-       "pid": data.pid,
-       "uid": data.uid,
-       "cmd": data.command.decode(),
-       "path_name": fetch_pathname(data.pid),
-       "cmd_line": fetch_cmdline(data.pid),
-       "msg": data.message.decode(),
-   })
-   print(dj)
+    event = bpf["bpf_buffer_00"].event(data)
+    dj = json.dumps({
+       "ppid": event.ppid,
+       "pid": event.pid,
+       "uid": event.uid,
+       "comm": event.comm.decode('utf-8', 'replace'),
+       "filename": event.filename.decode('utf-8', 'replace'),
+    })
+    print(dj)
 
-b["output"].open_perf_buffer(print_event)
+bpf["bpf_buffer_00"].open_perf_buffer(print_event)
+
+print("Tracing execve... Press Ctrl+C to stop.")
+
+# Poll the perf buffer to process events
 while True:
-   b.perf_buffer_poll()
+    try:
+        bpf.perf_buffer_poll()
+    except KeyboardInterrupt:
+        exit()
