@@ -55,12 +55,11 @@ class EventCrawler(object):
     @classmethod
     def spinup(cls, prog_src):
         print("Tracing execve... Press Ctrl+C to stop.")
-        while True:
-            try:
-                crawler = cls(bpf_program)
-                crawler._engage()
-            except KeyboardInterrupt:
-                exit(0)
+        try:
+            crawler = cls(bpf_program)
+            crawler._engage()
+        except KeyboardInterrupt:
+            exit(0)
 
     def _setup_bpf(self):
         self._bpf = BPF(text=self._prog_src)
