@@ -35,7 +35,7 @@ sub _reserve_bloom_filter {
 
     my $rc = undef;
     my $promise = $redis_conn->db->call_p('BF.RESERVE' => $key, $error_rate, $capacity);
-     $promise->then(sub {
+    $promise->then(sub {
         my $res = shift;
         $debug and printf STDERR "_reserve_bloom_filter [BF.RESERVE] -> %s %s %s returning %s\n", $key, $error_rate, $capacity, $res;
         $rc = $res eq "OK" ? true : false;
