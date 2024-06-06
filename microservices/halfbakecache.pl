@@ -1,7 +1,7 @@
 #!/usr/bin/perl
+
 use strict;
 use warnings;
-
 use File::stat;
 use Storable qw(nstore retrieve);
 use Digest::MD5 qw(md5_hex);
@@ -10,6 +10,7 @@ use Mojo::Redis;
 use constant { true => 1, false => 0, BF_CHECK => 0, BF_ADD => 1 };
 
 our $debug = true;
+
 
 sub _boolean_action_handler {
     my ($redis_conn, $redis_command, $res_expected, $key, $elem) = @_;
@@ -28,6 +29,7 @@ sub _boolean_action_handler {
     return $rc;
 }
 
+
 sub _reserve_bloom_filter {
     my ($redis_conn, $key, $error_rate, $capacity) = @_;
 
@@ -45,6 +47,7 @@ sub _reserve_bloom_filter {
     return $rc;
 }
 
+
 sub lookup_shm {
     my ($redis_conn, $shm_mem_key, $shm_mem_size) = @_;
     my @actions = (
@@ -56,19 +59,19 @@ sub lookup_shm {
         sub {
             # 'BF.ADD' features an integer reply: where "1" means that the item has been added successfully,
             # and "0" means that such item was already added to the filter.
-           return _boolean_action_handler($redis_conn, 'BF.ADD', 1, $shm_mem_key, shift);
+            return _boolean_action_handler($redis_conn, 'BF.ADD', 1, $shm_mem_key, shift);
         },
     );
 
     if ($redis_conn->db->exists($shm_mem_key)) {
-        print STDERR "Recovering share memory segment with key $shm_mem_key\n";
+        $debug and print STDERR "Recovering share memory segment with key $shm_mem_key\n";
         return \@actions;
     }
 
     printf STDERR "Non-available share memory segment featuring key: $shm_mem_key\n";
 
     if (eval { _reserve_bloom_filter($redis_conn, $shm_mem_key, "0.01", "$shm_mem_size"); 1 }) {
-        print STDERR "Setting up share memory segment with key $shm_mem_key\n";
+        $debug and print STDERR "Setting up share memory segment with key $shm_mem_key\n";
         return \@actions;
     } else {
         $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
@@ -90,7 +93,7 @@ sub retrieve_register {
         die "Cache register has expired.\n";
     }
 
-    print "Asking for content via cache\n";
+    $debug and print STDERR "Asking for content via cache\n";
     return retrieve($file_path);
 }
 
@@ -121,13 +124,14 @@ sub obtain_from_icss {
     }
 }
 
+
 sub ping {
     my ($redis_conn) = @_;
 
     $debug and do {
         my $pong = $redis_conn->db->ping;
         die "Failed to ping Redis server" unless $pong eq 'PONG';
-        print "Successfully pinged Redis server: $pong\n";
+        print STDERR "Successfully pinged Redis server: $pong\n";
     };
 }
 
@@ -152,14 +156,11 @@ sub do_disconn {
 # From this point onward it is mostly explanatory regarding its correct usage.
 {
     use LWP::UserAgent;
-
-    # This is just a example of an original data source (this handler is pulling data from outside)
-    # The return data from this handler shall be cached;
     sub fetcher_http_get_method {
         my $remote_url = shift;
         my $ua = LWP::UserAgent->new;
 
-        print "Asking for remote content via HTTP GET\n";
+        print STDERR "Asking for remote content via HTTP GET\n";
         my $get_response = $ua->get($remote_url);
 
         return \$get_response->decoded_content if $get_response->is_success;
