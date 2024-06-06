@@ -56,7 +56,7 @@ sub lookup_shm {
         sub {
             # 'BF.ADD' features an integer reply: where "1" means that the item has been added successfully,
             # and "0" means that such item was already added to the filter.
-           _boolean_action_handler($redis_conn, 'BF.ADD', 1, $shm_mem_key, shift);
+           return _boolean_action_handler($redis_conn, 'BF.ADD', 1, $shm_mem_key, shift);
         },
     );
 
