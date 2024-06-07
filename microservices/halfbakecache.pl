@@ -98,7 +98,7 @@ sub _obtain_from_icss {
     my ($shared_ref, $kcache, $fetch_handler) = @_;
     my $kfpath = $kcache . ".cache";
     my $do_registration = sub {
-      _create_reg($kfpath, $fetch_handler);
+      nstore($fetch_handler->(), $kfpath);
       return;
     };
 
