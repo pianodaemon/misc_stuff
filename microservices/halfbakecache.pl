@@ -76,7 +76,7 @@ sub _lookup_shm {
     }
 }
 
-sub retrieve_register {
+sub _retrieve_register {
     my ($file_path, $ttl_expected) = @_;
     my $file_stat = stat($file_path) or die "Failed to retrieve cache register $file_path: $!\n";
 
@@ -102,7 +102,7 @@ sub _obtain_from_icss {
         RETRIEVE_POINT:
         my $sref;
         unless (eval {
-          $sref = retrieve_register $kfpath, 30;
+          $sref = _retrieve_register $kfpath, 30;
         }) {
           $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
           &$do_registration();
