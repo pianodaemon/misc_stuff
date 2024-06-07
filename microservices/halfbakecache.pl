@@ -29,7 +29,7 @@ sub _boolean_action_handler {
 }
 
 sub _reserve_bloom_filter {
-    my ($redis_conn, $key, $error_rate, $capacity) = @_;
+    my ($redis_conn, $key, $error_rate, $capacity, $ttl_seconds) = @_;
 
     my $rc = undef;
     my $promise = $redis_conn->db->call_p('BF.RESERVE' => $key, $error_rate, $capacity);
@@ -42,11 +42,30 @@ sub _reserve_bloom_filter {
         warn "Error: $err";
     })->wait;
 
+    if ($rc) {
+        my $res = $redis_conn->db->expire($key, $ttl_seconds);
+        unless ( $res == 1 ) {
+            my $err = "bloom filter's time to live could not be set";
+            warn "Error: $err";
+            $rc = false;
+        }
+    }
     return $rc;
 }
 
+sub _expire_bloom_filter {
+    my ($redis_conn, $key, $seconds) = @_;
+
+    my $rc = undef;
+    my $res = $redis_conn->db->expire($key, $seconds);
+    $rc = $res eq 1 ? true : false;
+    return $rc;
+}
+
+
 sub _lookup_shm {
     my ($redis_conn, $shm_mem_key, $shm_mem_size) = @_;
+
     my @actions = (
         sub {
             # 'BF.EXISTS' features an integer reply: where "1" means that the item was already added with a high probabily,
@@ -67,7 +86,7 @@ sub _lookup_shm {
 
     printf STDERR "Non-available share memory segment featuring key: $shm_mem_key\n";
 
-    if (eval { _reserve_bloom_filter($redis_conn, $shm_mem_key, "0.01", "$shm_mem_size"); 1 }) {
+    if (eval { _reserve_bloom_filter($redis_conn, $shm_mem_key, "0.01", "$shm_mem_size", 86400); 1 }) {
         $debug and print STDOUT "Setting up share memory segment with key $shm_mem_key\n";
         return \@actions;
     } else {
@@ -78,8 +97,8 @@ sub _lookup_shm {
 
 sub _retrieve_record {
     my ($file_path, $ttl_expected) = @_;
-    my $file_stat = stat($file_path) or die "Failed to retrieve cache record $file_path: $!\n";
 
+    my $file_stat = stat($file_path) or die "Failed to retrieve cache record $file_path: $!\n";
     if (time - $file_stat->mtime > $ttl_expected) {
         unlink $file_path;
         die "Cache record has expired.\n";
@@ -91,6 +110,7 @@ sub _retrieve_record {
 
 sub _obtain_from_icss {
     my ($shared_ref, $kcache, $fetch_handler) = @_;
+
     my $kfpath = $kcache . ".cache";
     my $do_registration = sub {
         nstore($fetch_handler->(), $kfpath);
@@ -100,7 +120,6 @@ sub _obtain_from_icss {
     my $hit_and_miss = sub {
         my $sref;
         my $retrieved = 0;
-
         while (!$retrieved) {
             unless (eval {
                 $sref = _retrieve_record($kfpath, 30);
@@ -114,7 +133,6 @@ sub _obtain_from_icss {
                 $retrieved = 1;
             }
         }
-
         return $sref;
     };
 
@@ -157,6 +175,7 @@ sub do_disconn {
 
 sub do_cache {
     my ($redis_conn, $network_cache_key, $cache_size, $src_url, $fetch_handler) = @_;
+
     my $shared_ref = _lookup_shm($redis_conn, $network_cache_key, $cache_size);
     return _obtain_from_icss($shared_ref, murmur32($src_url), $fetch_handler);
 }
@@ -167,6 +186,7 @@ sub do_cache {
     use LWP::UserAgent;
     sub fetcher_http_get_method {
         my $remote_url = shift;
+
         my $ua = LWP::UserAgent->new;
 
         print STDOUT "Asking for remote content via HTTP GET\n";
