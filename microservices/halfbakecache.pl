@@ -11,6 +11,9 @@ use constant { true => 1, false => 0, BF_CHECK => 0, BF_ADD => 1 };
 
 our $debug = true;
 
+my $g_ttl_bloomfilter = 86400;  # 24 hours
+my $g_ttl_record = 30;          # 30 secs
+
 sub _boolean_action_handler {
     my ($redis_conn, $redis_command, $res_expected, $key, $elem) = @_;
 
@@ -71,7 +74,7 @@ sub _lookup_shm {
 
     printf STDERR "Non-available share memory segment featuring key: $shm_mem_key\n";
 
-    if (eval { _reserve_bloom_filter($redis_conn, $shm_mem_key, "0.01", "$shm_mem_size", 86400); 1 }) {
+    if (eval { _reserve_bloom_filter($redis_conn, $shm_mem_key, "0.01", "$shm_mem_size", $g_ttl_bloomfilter); 1 }) {
         $debug and print STDOUT "Setting up share memory segment with key $shm_mem_key\n";
         return \@actions;
     } else {
@@ -107,7 +110,7 @@ sub _obtain_from_icss {
         my $retrieved = 0;
         while (!$retrieved) {
             unless (eval {
-                $sref = _retrieve_record($kfpath, 30);
+                $sref = _retrieve_record($kfpath, $g_ttl_record);
                 1;
             }) {
                 # cache miss
