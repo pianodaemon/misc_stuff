@@ -31,37 +31,22 @@ sub _boolean_action_handler {
 sub _reserve_bloom_filter {
     my ($redis_conn, $key, $error_rate, $capacity, $ttl_seconds) = @_;
 
-    my $rc = undef;
+    my $err_flag = false;
     my $promise = $redis_conn->db->call_p('BF.RESERVE' => $key, $error_rate, $capacity);
     $promise->then(sub {
         my $res = shift;
         $debug and printf STDOUT "_reserve_bloom_filter [BF.RESERVE] -> %s %s %s returning %s\n", $key, $error_rate, $capacity, $res;
-        $rc = $res eq "OK" ? true : false;
+        $err_flag = true unless ($res eq "OK");
     })->catch(sub {
         my $err = shift;
         warn "Error: $err";
+        $err_flag = true;
     })->wait;
+    die "Not possible to reserve bloom filter $key\n" if ($err_flag);
 
-    if ($rc) {
-        my $res = $redis_conn->db->expire($key, $ttl_seconds);
-        unless ( $res == 1 ) {
-            my $err = "bloom filter's time to live could not be set";
-            warn "Error: $err";
-            $rc = false;
-        }
-    }
-    return $rc;
+    my $res = $redis_conn->db->expire($key, $ttl_seconds);
+    die "bloom filter's time to live could not be set\n" unless ($res == 1);
 }
-
-sub _expire_bloom_filter {
-    my ($redis_conn, $key, $seconds) = @_;
-
-    my $rc = undef;
-    my $res = $redis_conn->db->expire($key, $seconds);
-    $rc = $res eq 1 ? true : false;
-    return $rc;
-}
-
 
 sub _lookup_shm {
     my ($redis_conn, $shm_mem_key, $shm_mem_size) = @_;
