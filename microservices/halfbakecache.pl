@@ -97,7 +97,7 @@ sub _obtain_from_icss {
         return;
     };
 
-    my $register_and_retrieve = sub {
+    my $hit_and_miss = sub {
         my $sref;
         my $retrieved = 0;
 
@@ -106,9 +106,11 @@ sub _obtain_from_icss {
                 $sref = _retrieve_record($kfpath, 30);
                 1;
             }) {
+                # cache miss
                 $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
                 &$do_registration();
             } else {
+                # cache hit
                 $retrieved = 1;
             }
         }
@@ -116,13 +118,15 @@ sub _obtain_from_icss {
         return $sref;
     };
 
+    # Expecting positive
     my $found_flag = $shared_ref->[BF_CHECK]->($kcache);
     unless ($found_flag == 1) {
+        # It turned out negative
         &$do_registration();
         $shared_ref->[BF_ADD]->($kcache);
     }
 
-    return $register_and_retrieve->();
+    return $hit_and_miss->();
 }
 
 sub ping {
