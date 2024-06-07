@@ -28,7 +28,6 @@ sub _boolean_action_handler {
     return $rc;
 }
 
-
 sub _reserve_bloom_filter {
     my ($redis_conn, $key, $error_rate, $capacity) = @_;
 
@@ -46,7 +45,7 @@ sub _reserve_bloom_filter {
     return $rc;
 }
 
-sub lookup_shm {
+sub _lookup_shm {
     my ($redis_conn, $shm_mem_key, $shm_mem_size) = @_;
     my @actions = (
         sub {
@@ -95,7 +94,7 @@ sub retrieve_register {
     return retrieve($file_path);
 }
 
-sub _obtain_from_icss {
+sub __obtain_from_icss {
     my ($shared_ref, $kcache, $fetch_handler) = @_;
     my $kfpath = $kcache . ".cache";
     my $do_registration = sub {
@@ -122,9 +121,9 @@ sub _obtain_from_icss {
     }
 }
 
-sub obtain_from_icss {
+sub _obtain_from_icss {
     my ($shared_ref, $src_url, $fetch_handler) = @_;
-    return _obtain_from_icss($shared_ref, murmur32($src_url), $fetch_handler);
+    return __obtain_from_icss($shared_ref, murmur32($src_url), $fetch_handler);
 }
 
 sub ping {
@@ -155,6 +154,13 @@ sub do_disconn {
     Mojo::IOLoop->stop; # This will stop the event loop
 }
 
+sub do_cache {
+    my ($redis_conn, $network_cache_key, $cache_size, $src_url, $fetch_handler) = @_;
+    my $shared_ref = _lookup_shm($redis_conn, $network_cache_key, $cache_size);
+    _obtain_from_icss($shared_ref, $src_url, $fetch_handler);
+}
+
+
 # From this point onward it is mostly explanatory regarding its correct usage.
 {
     use LWP::UserAgent;
@@ -172,9 +178,7 @@ sub do_disconn {
     my $redis_conn = do_conn("127.0.0.1", 6379);
     my $network_cache_key = "ipc:hypertexts";
     my $cache_size = 1 << 10; # 1024 elements
-    my $shared_ref = lookup_shm($redis_conn, $network_cache_key, $cache_size);
     my $src_url = "https://httpbin.org/get";
-
-    obtain_from_icss($shared_ref, $src_url, sub { fetcher_http_get_method($src_url) });
+    do_cache ($redis_conn, $network_cache_key, $cache_size, $src_url, sub { fetcher_http_get_method($src_url) });
     do_disconn($redis_conn);
 }
