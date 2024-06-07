@@ -174,6 +174,6 @@ sub do_cache {
     my $network_cache_key = "ipc:hypertexts";
     my $cache_size = 1 << 10; # 1024 elements
     my $src_url = "https://httpbin.org/get";
-    do_cache ($redis_conn, $network_cache_key, $cache_size, $src_url, sub { fetcher_http_get_method($src_url) });
+    do_cache($redis_conn, $network_cache_key, $cache_size, $src_url, sub { fetcher_http_get_method($src_url) });
     do_disconn($redis_conn);
 }
