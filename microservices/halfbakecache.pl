@@ -1,7 +1,7 @@
 #!/usr/bin/perl
+
 use strict;
 use warnings;
-
 use File::stat;
 use Storable qw(nstore retrieve);
 use Digest::MurmurHash3 qw(murmur32);
@@ -119,11 +119,9 @@ sub _obtain_from_icss {
 sub ping {
     my ($redis_conn) = @_;
 
-    $debug and do {
-        my $pong = $redis_conn->db->ping;
-        die "Failed to ping Redis server" unless $pong eq 'PONG';
-        print STDERR "Successfully pinged Redis server: $pong\n";
-    };
+    my $pong = $redis_conn->db->ping;
+    die "Failed to ping Redis server" unless $pong eq 'PONG';
+    print STDERR "Successfully pinged Redis server: $pong\n";
 }
 
 sub do_conn {
@@ -132,7 +130,7 @@ sub do_conn {
     # Resource Acquisition Is Initialization or RAII
     Mojo::IOLoop->start unless Mojo::IOLoop->is_running;
     my $redis_conn = Mojo::Redis->new("redis://$host:$port/0")->encoding("UTF-8");
-    ping($redis_conn);
+    $debug and ping($redis_conn);
     return $redis_conn;
 }
 
