@@ -18,7 +18,7 @@ sub _boolean_action_handler {
     my $promise = $redis_conn->db->call_p($redis_command, $key, "$elem");
     $promise->then(sub {
         my $res = shift;
-        $debug and printf STDERR "_boolean_action_handler [%s] -> %s %s returning %s\n", $redis_command, $key, "$elem" ,$res;
+        $debug and printf STDOUT "_boolean_action_handler [%s] -> %s %s returning %s\n", $redis_command, $key, "$elem" ,$res;
         $rc = $res eq $res_expected ? true : false;
     })->catch(sub {
         my $err = shift;
@@ -35,7 +35,7 @@ sub _reserve_bloom_filter {
     my $promise = $redis_conn->db->call_p('BF.RESERVE' => $key, $error_rate, $capacity);
     $promise->then(sub {
         my $res = shift;
-        $debug and printf STDERR "_reserve_bloom_filter [BF.RESERVE] -> %s %s %s returning %s\n", $key, $error_rate, $capacity, $res;
+        $debug and printf STDOUT "_reserve_bloom_filter [BF.RESERVE] -> %s %s %s returning %s\n", $key, $error_rate, $capacity, $res;
         $rc = $res eq "OK" ? true : false;
     })->catch(sub {
         my $err = shift;
@@ -61,14 +61,14 @@ sub _lookup_shm {
     );
 
     if ($redis_conn->db->exists($shm_mem_key)) {
-        $debug and print STDERR "Recovering share memory segment with key $shm_mem_key\n";
+        $debug and print STDOUT "Recovering share memory segment with key $shm_mem_key\n";
         return \@actions;
     }
 
     printf STDERR "Non-available share memory segment featuring key: $shm_mem_key\n";
 
     if (eval { _reserve_bloom_filter($redis_conn, $shm_mem_key, "0.01", "$shm_mem_size"); 1 }) {
-        $debug and print STDERR "Setting up share memory segment with key $shm_mem_key\n";
+        $debug and print STDOUT "Setting up share memory segment with key $shm_mem_key\n";
         return \@actions;
     } else {
         $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
@@ -76,16 +76,16 @@ sub _lookup_shm {
     }
 }
 
-sub _retrieve_register {
+sub _retrieve_record {
     my ($file_path, $ttl_expected) = @_;
-    my $file_stat = stat($file_path) or die "Failed to retrieve cache register $file_path: $!\n";
+    my $file_stat = stat($file_path) or die "Failed to retrieve cache record $file_path: $!\n";
 
     if (time - $file_stat->mtime > $ttl_expected) {
         unlink $file_path;
-        die "Cache register has expired.\n";
+        die "Cache record has expired.\n";
     }
 
-    $debug and print STDERR "Asking for content via cache\n";
+    $debug and print STDOUT "Asking for content via cache\n";
     return retrieve($file_path);
 }
 
@@ -102,7 +102,7 @@ sub _obtain_from_icss {
         RETRIEVE_POINT:
         my $sref;
         unless (eval {
-          $sref = _retrieve_register $kfpath, 30;
+          $sref = _retrieve_record $kfpath, 30;
         }) {
           $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
           &$do_registration();
@@ -121,7 +121,7 @@ sub ping {
 
     my $pong = $redis_conn->db->ping;
     die "Failed to ping Redis server" unless $pong eq 'PONG';
-    print STDERR "Successfully pinged Redis server: $pong\n";
+    print STDOUT "Successfully pinged Redis server: $pong\n";
 }
 
 sub do_conn {
@@ -156,7 +156,7 @@ sub do_cache {
         my $remote_url = shift;
         my $ua = LWP::UserAgent->new;
 
-        print STDERR "Asking for remote content via HTTP GET\n";
+        print STDOUT "Asking for remote content via HTTP GET\n";
         my $get_response = $ua->get($remote_url);
 
         return \$get_response->decoded_content if $get_response->is_success;
