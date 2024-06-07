@@ -154,7 +154,7 @@ sub do_disconn {
 sub do_cache {
     my ($redis_conn, $network_cache_key, $cache_size, $src_url, $fetch_handler) = @_;
     my $shared_ref = _lookup_shm($redis_conn, $network_cache_key, $cache_size);
-    _obtain_from_icss($shared_ref, murmur32($src_url), $fetch_handler);
+    return _obtain_from_icss($shared_ref, murmur32($src_url), $fetch_handler);
 }
 
 
