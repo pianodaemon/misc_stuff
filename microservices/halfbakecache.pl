@@ -93,27 +93,36 @@ sub _obtain_from_icss {
     my ($shared_ref, $kcache, $fetch_handler) = @_;
     my $kfpath = $kcache . ".cache";
     my $do_registration = sub {
-      nstore($fetch_handler->(), $kfpath);
-      return;
+        nstore($fetch_handler->(), $kfpath);
+        return;
+    };
+
+    my $register_and_retrieve = sub {
+        my $sref;
+        my $retrieved = 0;
+
+        while (!$retrieved) {
+            unless (eval {
+                $sref = _retrieve_record($kfpath, 30);
+                1;
+            }) {
+                $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
+                &$do_registration();
+            } else {
+                $retrieved = 1;
+            }
+        }
+
+        return $sref;
     };
 
     my $found_flag = $shared_ref->[BF_CHECK]->($kcache);
-    if ($found_flag == 1) {
-        RETRIEVE_POINT:
-        my $sref;
-        unless (eval {
-          $sref = _retrieve_record $kfpath, 30;
-        }) {
-          $debug and printf STDERR "%s\n", $@ || 'Unknown failure';
-          &$do_registration();
-          goto RETRIEVE_POINT;
-        }
-        print $$sref;
-    } else {
+    unless ($found_flag == 1) {
         &$do_registration();
         $shared_ref->[BF_ADD]->($kcache);
-        goto RETRIEVE_POINT;
     }
+
+    return $register_and_retrieve->();
 }
 
 sub ping {
@@ -167,6 +176,7 @@ sub do_cache {
     my $network_cache_key = "ipc:hypertexts";
     my $cache_size = 1 << 10; # 1024 elements
     my $src_url = "https://httpbin.org/get";
-    do_cache($redis_conn, $network_cache_key, $cache_size, $src_url, sub { fetcher_http_get_method($src_url) });
+    my $sref = do_cache($redis_conn, $network_cache_key, $cache_size, $src_url, sub { fetcher_http_get_method($src_url) });
+    print $$sref;
     do_disconn($redis_conn);
 }
