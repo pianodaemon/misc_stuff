@@ -76,11 +76,6 @@ sub _lookup_shm {
     }
 }
 
-sub _create_reg {
-    my ($file_path, $fetch_handler) = @_;
-    nstore($fetch_handler->(), $file_path);
-}
-
 sub retrieve_register {
     my ($file_path, $ttl_expected) = @_;
     my $file_stat = stat($file_path) or die "Failed to retrieve cache register $file_path: $!\n";
