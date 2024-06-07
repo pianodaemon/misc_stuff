@@ -4,13 +4,12 @@ use strict;
 use warnings;
 use File::stat;
 use Storable qw(nstore retrieve);
-use Digest::MD5 qw(md5_hex);
+use Digest::MurmurHash3 qw(murmur32);
 use Mojo::Redis;
 
 use constant { true => 1, false => 0, BF_CHECK => 0, BF_ADD => 1 };
 
 our $debug = true;
-
 
 sub _boolean_action_handler {
     my ($redis_conn, $redis_command, $res_expected, $key, $elem) = @_;
@@ -46,7 +45,6 @@ sub _reserve_bloom_filter {
 
     return $rc;
 }
-
 
 sub lookup_shm {
     my ($redis_conn, $shm_mem_key, $shm_mem_size) = @_;
@@ -97,7 +95,7 @@ sub retrieve_register {
     return retrieve($file_path);
 }
 
-sub obtain_from_icss {
+sub _obtain_from_icss {
     my ($shared_ref, $kcache, $fetch_handler) = @_;
     my $kfpath = $kcache . ".cache";
     my $do_registration = sub {
@@ -124,6 +122,10 @@ sub obtain_from_icss {
     }
 }
 
+sub obtain_from_icss {
+    my ($shared_ref, $src_url, $fetch_handler) = @_;
+    return _obtain_from_icss($shared_ref, murmur32($src_url), $fetch_handler);
+}
 
 sub ping {
     my ($redis_conn) = @_;
@@ -172,8 +174,7 @@ sub do_disconn {
     my $cache_size = 1 << 10; # 1024 elements
     my $shared_ref = lookup_shm($redis_conn, $network_cache_key, $cache_size);
     my $src_url = "https://httpbin.org/get";
-    my $kcache = md5_hex($src_url);
 
-    obtain_from_icss($shared_ref, $kcache, sub { fetcher_http_get_method($src_url) });
+    obtain_from_icss($shared_ref, $src_url, sub { fetcher_http_get_method($src_url) });
     do_disconn($redis_conn);
 }
